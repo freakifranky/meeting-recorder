@@ -1,0 +1,26 @@
+:root { --ink:#1d2733; --muted:#5b6876; --rec:#c2362b; --ok:#2f6f4f; --line:#cfd6de; --bg:#f6f8fa; --warn:#8a5a00; }
+* { box-sizing:border-box; }
+body { width:320px; margin:0; font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:#fff; }
+header { display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); }
+header a { margin-left:auto; font-size:13px; color:var(--ink); }
+.dot { width:9px; height:9px; border-radius:50%; background:var(--line); }
+.dot.live { background:var(--rec); animation:pulse 1.4s infinite; }
+@keyframes pulse { 50% { opacity:.35; } }
+section { padding:14px; }
+.tab { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+.tab span { display:block; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tab small { display:block; margin-top:2px; font-size:12px; color:var(--muted); }
+.tab small.ok { color:var(--ok); }
+.tab small.warn { color:var(--warn); }
+label { display:block; margin-top:12px; font-size:12px; color:var(--muted); }
+select, input { display:block; width:100%; margin-top:4px; padding:8px 9px; font:inherit; color:var(--ink); border:1px solid var(--line); border-radius:7px; background:#fff; }
+button { width:100%; margin-top:14px; padding:11px; font:600 15px system-ui,sans-serif; border:0; border-radius:8px; color:#fff; cursor:pointer; }
+button:disabled { opacity:.5; cursor:wait; }
+.go { background:var(--ink); }
+.stop { background:var(--rec); }
+:focus-visible { outline:3px solid #6aa0d8; outline-offset:2px; }
+.clock { font:600 44px/1 ui-monospace,Menlo,monospace; color:var(--rec); text-align:center; margin:6px 0 10px; }
+.muted { color:var(--muted); margin:4px 0; text-align:center; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.small { font-size:12px; margin-top:10px; }
+.warn { color:var(--warn); font-size:12px; margin:6px 0 0; }
+.err { color:var(--rec); font-size:13px; margin:8px 0 0; min-height:0; }

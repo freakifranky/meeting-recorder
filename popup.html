@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="popup.css"></head>
+<body>
+<header><span class="dot" id="dot"></span><b>Meeting Recorder</b><a id="recs" href="#">Recordings</a></header>
+
+<section id="idle">
+  <div class="tab" id="tab"><span id="tabTitle">…</span><small id="tabHint"></small></div>
+
+  <label>Microphone
+    <select id="mic"></select>
+  </label>
+  <p class="warn" id="micWarn" hidden>Mic access not granted yet. <a href="#" id="allow">Allow microphone</a></p>
+
+  <label>Title
+    <input id="title" placeholder="e.g. Ajaib PM interview, Weekly sync">
+  </label>
+
+  <label>Names and terms to spell right
+    <input id="vocab" placeholder="People, companies, products, jargon">
+  </label>
+
+  <button class="go" id="start">Start recording</button>
+  <p class="err" id="err"></p>
+</section>
+
+<section id="live" hidden>
+  <div class="clock" id="clock">00:00</div>
+  <p class="muted" id="liveTitle"></p>
+  <p class="muted" id="liveMic"></p>
+  <button class="stop" id="stop">Stop and save</button>
+  <p class="muted small">You can close this popup. Recording continues.</p>
+</section>
+<script src="popup.js"></script>
+</body></html>

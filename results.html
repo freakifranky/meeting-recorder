@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Meeting recordings</title><link rel="stylesheet" href="style.css"></head>
+<body><main>
+<h1>Meeting recordings</h1>
+<p class="muted">Stored locally in Brave. Audio only leaves your machine when you press Transcribe.</p>
+<div id="err"></div>
+<details id="settings">
+  <summary>Transcription settings</summary>
+  <label>Provider
+    <select id="provider"><option value="groq">Groq (Whisper large v3)</option><option value="openai">OpenAI (whisper-1)</option></select>
+  </label>
+  <label>API key <input id="key" type="password" autocomplete="off" placeholder="Paste your API key"></label>
+  <label>Language
+    <select id="lang"><option value="en">English</option><option value="id">Indonesian</option><option value="">Auto-detect</option></select>
+  </label>
+  <label>Names and terms always included (comma separated)
+    <input id="vocab" placeholder="OmniHR, Gojek, GoMart, Tokopedia, PRD">
+  </label>
+  <div class="row"><button class="primary" id="save">Save settings</button><span id="saved" class="muted"></span></div>
+</details>
+<div id="list"></div>
+<style>
+.stats{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:14px}
+.stats table{border-collapse:collapse;margin:6px 0 10px}
+.stats td,.stats th{padding:3px 12px 3px 0;text-align:left}
+.stats th{color:var(--muted);font-weight:500}
+.inaudible{color:var(--muted);font-style:italic}
+</style></main><script src="db.js"></script><script src="results.js"></script></body></html>
