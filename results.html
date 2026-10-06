@@ -9,11 +9,11 @@
     <select id="provider"><option value="groq">Groq (Whisper large v3)</option><option value="openai">OpenAI (whisper-1)</option></select>
   </label>
   <label>API key <input id="key" type="password" autocomplete="off" placeholder="Paste your API key"></label>
-  <label>Language
-    <select id="lang"><option value="en">English</option><option value="id">Indonesian</option><option value="">Auto-detect</option></select>
+  <label>Default language
+    <select id="lang"><option value="">Auto-detect</option><option value="en">English</option><option value="id">Indonesian</option></select>
   </label>
   <label>Names and terms always included (comma separated)
-    <input id="vocab" placeholder="OmniHR, Gojek, GoMart, Tokopedia, PRD">
+    <input id="vocab" placeholder="e.g. Acme, Priya, Kubernetes, OKR">
   </label>
   <div class="row"><button class="primary" id="save">Save settings</button><span id="saved" class="muted"></span></div>
 </details>

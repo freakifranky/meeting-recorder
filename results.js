@@ -3,7 +3,10 @@ const PROVIDERS = {
   openai: { base: 'https://api.openai.com/v1', model: 'whisper-1' }
 };
 const MAX = 24.5 * 1024 * 1024;
-const FILLERS = ['um', 'uh', 'like', 'you know', 'basically', 'actually', 'i mean', 'kind of', 'sort of', 'coming from', 'right', 'so yeah'];
+const FILLERS_EN = ['um', 'uh', 'like', 'you know', 'basically', 'actually', 'i mean', 'kind of', 'sort of', 'coming from', 'right', 'so yeah'];
+const FILLERS_ID = ['jadi', 'nah', 'gitu', 'kayak', 'kayak gitu', 'ya', 'ya kan', 'kan', 'sih', 'dong', 'sebenarnya', 'sebenernya', 'pokoknya', 'intinya', 'maksudnya', 'terus', 'gimana ya', 'apa ya', 'anu', 'eee', 'emm'];
+const FILLERS = [...FILLERS_EN, ...FILLERS_ID]; // meetings code-switch, so count both
+let defaultLang = '';
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
 const mmss = s => { s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' : '') + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
@@ -13,7 +16,8 @@ const norm = t => t.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, '').replace(/\s+/g
 const words = t => (t.match(/[\p{L}\p{N}']+/gu) || []).length;
 
 async function loadSettings() {
-  const { cfg = { provider: 'groq', key: '', lang: 'en', vocab: '' } } = await chrome.storage.local.get('cfg');
+  const { cfg = { provider: 'groq', key: '', lang: '', vocab: '' } } = await chrome.storage.local.get('cfg');
+  defaultLang = cfg.lang || '';
   $('provider').value = cfg.provider; $('key').value = cfg.key; $('lang').value = cfg.lang; $('vocab').value = cfg.vocab || '';
   if (!cfg.key) $('settings').open = true;
 }
@@ -23,20 +27,24 @@ $('save').onclick = async () => {
 };
 
 // Whisper's prompt is capped around 224 tokens; keep the vocab well under that.
-function buildPrompt(cfg, extra) {
+function buildPrompt(cfg, extra, lang) {
   const terms = [cfg.vocab, extra].filter(Boolean).join(', ').split(',').map(s => s.trim()).filter(Boolean);
   const uniq = [...new Set(terms)].join(', ').slice(0, 600);
-  return 'A recorded meeting conversation.' + (uniq ? ' Names and terms: ' + uniq + '.' : '');
+  if (lang === 'id') {
+    return 'Percakapan rapat dalam bahasa Indonesia, kadang dicampur istilah bahasa Inggris.' + (uniq ? ' Nama dan istilah: ' + uniq + '.' : '');
+  }
+  if (lang === 'en') return 'A recorded meeting conversation.' + (uniq ? ' Names and terms: ' + uniq + '.' : '');
+  return uniq ? 'Names and terms: ' + uniq + '.' : ''; // auto: don't bias the language guess
 }
 
 // Quality gate. High compression ratio = repetition loop; very low logprob = guessing.
-function clean(segs) {
+function clean(segs, minLogprob = -1.0) {
   const out = [];
   const recent = [];
   for (const s of segs) {
     const text = (s.text || '').trim();
     if (!text || (s.no_speech_prob ?? 0) > 0.6) continue;
-    const bad = (s.compression_ratio ?? 0) > 2.4 || (s.avg_logprob ?? 0) < -1.0;
+    const bad = (s.compression_ratio ?? 0) > 2.4 || (s.avg_logprob ?? 0) < minLogprob;
     const key = norm(text);
     const repeat = words(text) >= 4 && recent.includes(key);
     if (bad || repeat) {
@@ -52,7 +60,7 @@ function clean(segs) {
   return out;
 }
 
-async function whisper(blob, cfg, extra) {
+async function whisper(blob, cfg, extra, lang) {
   if (!blob || blob.size < 2000) return [];
   if (blob.size > MAX) throw new Error('Track is over 25 MB (roughly 2+ hours). Trim it or transcribe offline.');
   const p = PROVIDERS[cfg.provider];
@@ -61,12 +69,13 @@ async function whisper(blob, cfg, extra) {
   fd.append('model', p.model);
   fd.append('response_format', 'verbose_json');
   fd.append('temperature', '0');
-  fd.append('prompt', buildPrompt(cfg, extra));
-  if (cfg.lang) fd.append('language', cfg.lang);
+  const prompt = buildPrompt(cfg, extra, lang);
+  if (prompt) fd.append('prompt', prompt);
+  if (lang) fd.append('language', lang);
   const r = await fetch(p.base + '/audio/transcriptions', { method: 'POST', headers: { Authorization: 'Bearer ' + cfg.key }, body: fd });
   if (!r.ok) throw new Error(cfg.provider + ' returned ' + r.status + ': ' + (await r.text()).slice(0, 200));
   const j = await r.json();
-  return clean(j.segments || []);
+  return clean(j.segments || [], lang === 'en' ? -1.0 : -1.25); // Whisper is less confident outside English
 }
 
 function merge(me, them) {
@@ -93,7 +102,7 @@ function stats(lines) {
   }
   const total = per.You.talk + per.Others.talk || 1;
   const mine = ' ' + norm(lines.filter(l => l.who === 'You' && !l.inaudible).map(l => l.text).join(' ')) + ' ';
-  const fillers = FILLERS.map(f => [f, mine.split(' ' + f + ' ').length - 1]).filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]);
+  const fillers = FILLERS.map(f => [f, mine.split(' ' + f + ' ').length - 1]).filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const questions = [];
   lines.filter(l => l.who === 'Others' && !l.inaudible).forEach(l =>
     (l.text.replace(/\[inaudible\]/g, '').match(/[^.?!]*\?/g) || []).map(q => q.trim()).filter(q => words(q) >= 4).forEach(q => questions.push({ at: l.start, q })));
@@ -156,6 +165,8 @@ function card(r, focus) {
     .filter(([k]) => r[k])
     .map(([k, label]) => el('a', { className: 'btn', textContent: `${label} (${(r[k].size / 1048576).toFixed(1)} MB)`, download: `${slug(r)}_${k}.webm`, href: URL.createObjectURL(r[k]) }));
 
+  const lang = el('select', {}, ...[['', 'Auto-detect'], ['en', 'English'], ['id', 'Indonesian']].map(([v, t]) => el('option', { value: v, textContent: t })));
+  lang.value = r.lang !== undefined ? r.lang : defaultLang;
   const vocab = el('input', { value: r.vocab || '', placeholder: 'People, companies, products, jargon' });
   const tBtn = el('button', { className: 'primary', textContent: r.transcript ? 'Transcribe again' : 'Transcribe' });
   tBtn.onclick = async () => {
@@ -164,7 +175,8 @@ function card(r, focus) {
     tBtn.disabled = true; status.textContent = 'Transcribing both tracks…';
     try {
       r.vocab = vocab.value.trim();
-      const [me, them] = await Promise.all([whisper(r.me, cfg, r.vocab), whisper(r.them, cfg, r.vocab)]);
+      r.lang = lang.value;
+      const [me, them] = await Promise.all([whisper(r.me, cfg, r.vocab, r.lang), whisper(r.them, cfg, r.vocab, r.lang)]);
       r.transcript = merge(me, them);
       await dbPut(r);
       status.textContent = r.transcript.length ? '' : 'No speech found. Check the level of both tracks.';
@@ -182,6 +194,7 @@ function card(r, focus) {
     el('h2', { textContent: r.title }),
     el('div', { className: 'muted', textContent: `${new Date(r.startedAt).toLocaleString()} | ${mmss(r.duration / 1000)}` }),
     el('div', { className: 'row' }, ...links),
+    el('label', {}, 'Spoken language', lang, el('span', { className: 'muted', textContent: 'Auto-detect decides per track, so it suits an Indonesian speaker talking to an English one. If someone mixes both, pick their main language.' })),
     el('label', {}, 'Names and terms to spell right', vocab),
     el('div', { className: 'row' }, tBtn, del, status),
     box);
